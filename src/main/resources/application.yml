@@ -1,0 +1,6 @@
+server:
+  port: 9090
+feign:
+  url: ${USER_ENDPOINT:http://localhost:3000}/api
+  connectTimeoutMillis: ${FEIGN_CONNECT_TIMEOUT:10000}
+  readTimeoutMillis: ${FEIGN_READ_TIMEOUT:60000}

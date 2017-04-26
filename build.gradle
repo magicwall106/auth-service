@@ -1,0 +1,131 @@
+buildscript {
+    ext {
+        springBootVersion = '1.4.1.RELEASE'
+        dependencyManagementVersion = '0.6.1.RELEASE'
+    }
+    repositories {
+        mavenCentral()
+        maven {
+            url "https://plugins.gradle.org/m2/"
+        }
+    }
+    dependencies {
+        classpath("org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}")
+        classpath("io.spring.gradle:dependency-management-plugin:${dependencyManagementVersion}")
+        classpath("se.transmode.gradle:gradle-docker:1.2")
+        classpath("net.ltgt.gradle:gradle-errorprone-plugin:0.0.8")
+        classpath("org.sonarsource.scanner.gradle:sonarqube-gradle-plugin:2.2.1")
+        classpath("net.ltgt.gradle:gradle-apt-plugin:0.9")
+    }
+}
+
+ext {
+    spockVersion = '1.1-groovy-2.4-rc-2'
+    groovyVersion = '2.4.7' // this version is compatible with spockVersion.
+    springCloudNeflixVersion = "1.2.0.RELEASE"
+    springBootDependencyVersion = "1.4.1.RELEASE"
+}
+
+repositories {
+    mavenLocal()
+    jcenter()
+    mavenCentral()
+}
+
+apply plugin: 'java'
+apply plugin: 'groovy'
+apply plugin: 'project-report'
+apply plugin: 'spring-boot'
+apply plugin: 'io.spring.dependency-management'
+apply plugin: 'net.ltgt.errorprone'
+apply plugin: 'checkstyle'
+apply plugin: 'pmd'
+apply plugin: 'jacoco'
+apply plugin: 'org.sonarqube'
+apply plugin: 'net.ltgt.apt'
+
+
+group = 'com.example.quickstart'
+version = '1.0-SNAPSHOT'
+
+sonarqube {
+    properties {
+        property "sonar.projectKey", "${project.name}"
+        property "sonar.projectName", "${project.name}"
+        property "sonar.projectVersion", "${project.version}"
+    }
+}
+
+dependencyManagement {
+    imports {
+        mavenBom 'org.springframework.cloud:spring-cloud-dependencies:Camden.RELEASE'
+    }
+}
+
+checkstyle {
+    toolVersion = '7.1.1'
+    configFile = file('codequality/checkstyle/checkstyle.xml')
+}
+
+pmd {
+    ruleSetFiles = files(file('codequality/pmd/ruleset.xml'))
+}
+
+
+compileJava {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+    options.encoding = 'UTF-8'
+}
+
+compileJava.options*.compilerArgs = [
+        "-Xlint:serial", "-Xlint:varargs", "-Xlint:cast", "-Xlint:classfile",
+        "-Xlint:dep-ann", "-Xlint:divzero", "-Xlint:empty", "-Xlint:finally",
+        "-Xlint:overrides", "-Xlint:path", "-Xlint:processing", "-Xlint:static",
+        "-Xlint:try", "-Xlint:fallthrough", "-Xlint:rawtypes", "-Xlint:deprecation",
+        "-Xlint:unchecked", "-Xlint:-options"
+]
+
+compileTestJava.options*.compilerArgs = [
+        "-Xlint:serial", "-Xlint:-varargs", "-Xlint:cast", "-Xlint:classfile",
+        "-Xlint:dep-ann", "-Xlint:divzero", "-Xlint:empty", "-Xlint:finally",
+        "-Xlint:overrides", "-Xlint:path", "-Xlint:processing", "-Xlint:static",
+        "-Xlint:try", "-Xlint:-fallthrough", "-Xlint:-rawtypes", "-Xlint:-deprecation",
+        "-Xlint:-unchecked", "-Xlint:-options"]
+
+configurations {
+    errorprone.resolutionStrategy.force 'com.google.errorprone:error_prone_core:2.0.13'
+}
+
+dependencies {
+    //compile project(':common')
+    compile("org.springframework.boot:spring-boot-starter-web")
+    compile("org.springframework.cloud:spring-cloud-starter-feign") // declarative web service client
+    //compile("com.example.quickstart"common:${common_lib}")
+    testCompile("org.springframework.boot:spring-boot-starter-test")
+    testCompile("org.assertj:assertj-core:3.5.2")
+    testCompile("org.spockframework:spock-core:$spockVersion") {
+        exclude group: 'org.codehaus.groovy'
+    }
+    testCompile("org.codehaus.groovy:groovy-all:$groovyVersion")
+    testCompile('org.hamcrest:hamcrest-core:1.3') // only necessary if Hamcrest matchers are used
+    testCompile('cglib:cglib-nodep:3.1') // used for spock framework to mock non-interface classes.
+    testCompile('org.objenesis:objenesis:2.1') // used when mocked class has non-default constructor
+}
+
+
+task wrapper(type: Wrapper) {
+    description = "Generates gradlew[.bat] scripts"
+    gradleVersion = '3.1'
+
+    doLast() {
+        def gradleOpts = "-XX:MaxMetaspaceSize=1024m -Xmx1024m"
+        def gradleBatOpts = "$gradleOpts -XX:MaxHeapSize=256m"
+        File wrapperFile = file("gradlew")
+        wrapperFile.text = wrapperFile.text.replace("DEFAULT_JVM_OPTS=",
+                "GRADLE_OPTS=\"$gradleOpts \$GRADLE_OPTS\"\nDEFAULT_JVM_OPTS=")
+        File wrapperBatFile = file("gradlew.bat")
+        wrapperBatFile.text = wrapperBatFile.text.replace("set DEFAULT_JVM_OPTS=",
+                "set GRADLE_OPTS=$gradleBatOpts %GRADLE_OPTS%\nset DEFAULT_JVM_OPTS=")
+    }
+}
